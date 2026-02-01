@@ -12,7 +12,7 @@ Watch AI play the animal name game — and learn from its mistakes.
 
 ## Demo
 
-[animalphabet.pages.dev](https://animalphabet.pages.dev) *(update with your URL)*
+[animalphabet.bborn.workers.dev](https://animalphabet.bborn.workers.dev)
 
 ## Setup
 
