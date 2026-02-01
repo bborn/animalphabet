@@ -129,6 +129,21 @@ section {
   background: var(--border);
 }
 
+.btn.danger {
+  background: var(--error);
+  color: white;
+}
+
+.btn.danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.stop-controls {
+  text-align: center;
+  margin-top: 1rem;
+}
+
 /* Game display */
 .stats {
   display: flex;
@@ -196,9 +211,14 @@ section {
 .animal .number {
   color: var(--text-muted);
   font-size: 0.8rem;
+  margin-right: 0.25rem;
 }
 
-.animal .letter {
+.animal .name {
+  text-transform: capitalize;
+}
+
+.animal .name .letter {
   color: var(--primary);
   font-weight: 600;
 }

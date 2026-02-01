@@ -35,8 +35,11 @@ const failedLetterDisplay = document.getElementById('failed-letter-display');
 const suggestionInput = document.getElementById('suggestion-input');
 const submitSuggestionBtn = document.getElementById('submit-suggestion-btn');
 const suggestionResult = document.getElementById('suggestion-result');
+const stopBtn = document.getElementById('stop-btn');
+const stopControls = document.getElementById('stop-controls');
 
 // Event listeners
+stopBtn.addEventListener('click', stopGame);
 startBtn.addEventListener('click', startGame);
 randomBtn.addEventListener('click', () => {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -63,6 +66,7 @@ async function startGame() {
   startControls.style.display = 'none';
   gameDisplay.style.display = 'block';
   gameOverEl.style.display = 'none';
+  stopControls.style.display = 'block';
   statusEl.innerHTML = '<span class="thinking">Thinking...</span>';
   chainEl.innerHTML = '';
   updateStats();
@@ -122,11 +126,9 @@ function addAnimalToDisplay(animal, number) {
 
   const firstLetter = animal[0].toUpperCase();
   const lastLetter = animal.slice(-1).toUpperCase();
+  const middle = animal.slice(1, -1);
 
-  el.innerHTML = `
-    <span class="number">${number}</span>
-    <span class="letter">${firstLetter}</span>${animal.slice(1, -1)}<span class="letter">${lastLetter}</span>
-  `;
+  el.innerHTML = `<span class="number">${number}</span><span class="name"><span class="letter">${firstLetter}</span>${middle}<span class="letter">${lastLetter}</span></span>`;
 
   chainEl.appendChild(el);
 
@@ -150,6 +152,7 @@ async function endGame(reason) {
 
   statusEl.innerHTML = '';
   gameOverEl.style.display = 'block';
+  stopControls.style.display = 'none';
 
   if (chain.length >= 100) {
     gameOverTitleEl.textContent = '🎉 Incredible!';
@@ -218,6 +221,12 @@ async function saveScore() {
   }
 }
 
+// Stop the current game
+function stopGame() {
+  if (!isPlaying) return;
+  endGame('Stopped by player');
+}
+
 // Reset to start screen
 function resetGame() {
   chain = [];
@@ -227,6 +236,7 @@ function resetGame() {
   startControls.style.display = 'flex';
   gameDisplay.style.display = 'none';
   gameOverEl.style.display = 'none';
+  stopControls.style.display = 'none';
   saveScoreBtn.textContent = 'Save Score';
   saveScoreBtn.disabled = false;
   playerNameInput.value = '';
@@ -316,12 +326,8 @@ function showChainModal(entry) {
   modalChain.innerHTML = entry.chain.map((animal, i) => {
     const firstLetter = animal[0].toUpperCase();
     const lastLetter = animal.slice(-1).toUpperCase();
-    return `
-      <a class="animal" href="${getWikiUrl(animal)}" target="_blank" rel="noopener">
-        <span class="number">${i + 1}</span>
-        <span class="letter">${firstLetter}</span>${animal.slice(1, -1)}<span class="letter">${lastLetter}</span>
-      </a>
-    `;
+    const middle = animal.slice(1, -1);
+    return `<a class="animal" href="${getWikiUrl(animal)}" target="_blank" rel="noopener"><span class="number">${i + 1}</span><span class="name"><span class="letter">${firstLetter}</span>${middle}<span class="letter">${lastLetter}</span></span></a>`;
   }).join('');
 
   modalOverlay.classList.add('active');
