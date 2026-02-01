@@ -428,18 +428,6 @@ async function loadLeaderboard() {
         direction = e.clientX < centerX ? -1 : 1;
       });
 
-      display.addEventListener('mouseenter', () => {
-        paused = true;
-        if (animationId) clearTimeout(animationId);
-      });
-
-      display.addEventListener('mouseleave', () => {
-        paused = false;
-        if (isAnimating && currentIndex < emojis.length) {
-          scheduleNext();
-        }
-      });
-
       tooltip.addEventListener('click', (e) => {
         e.stopPropagation();
         const animal = tooltip.textContent;
@@ -455,7 +443,54 @@ async function loadLeaderboard() {
 
       tooltip.addEventListener('mouseleave', () => {
         paused = false;
-        if (isAnimating && currentIndex < emojis.length) {
+        if (isAnimating && currentIndex >= 0 && currentIndex < emojis.length) {
+          scheduleNext();
+        }
+      });
+
+      // Keyboard navigation when paused on emoji
+      let keyDirection = 1;
+
+      const handleKeyNav = (e) => {
+        if (!paused || !isAnimating) return;
+
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (currentIndex < emojis.length - 1) {
+            keyDirection = 1;
+            currentIndex++;
+            showCurrentEmoji();
+          }
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (currentIndex > 0) {
+            keyDirection = -1;
+            currentIndex--;
+            showCurrentEmoji();
+          }
+        }
+      };
+
+      const showCurrentEmoji = () => {
+        display.textContent = emojis[currentIndex];
+        const animalName = animals[currentIndex] || '';
+        tooltip.textContent = animalName;
+        tooltip.style.opacity = animalName ? '1' : '0';
+        display.classList.remove('slide-left', 'slide-right');
+        void display.offsetWidth;
+        display.classList.add(keyDirection === 1 ? 'slide-right' : 'slide-left');
+      };
+
+      display.addEventListener('mouseenter', () => {
+        paused = true;
+        if (animationId) clearTimeout(animationId);
+        document.addEventListener('keydown', handleKeyNav);
+      });
+
+      display.addEventListener('mouseleave', () => {
+        paused = false;
+        document.removeEventListener('keydown', handleKeyNav);
+        if (isAnimating && currentIndex >= 0 && currentIndex < emojis.length) {
           scheduleNext();
         }
       });
@@ -476,9 +511,9 @@ async function loadLeaderboard() {
         const animalName = animals[currentIndex] || '';
         tooltip.textContent = animalName;
         tooltip.style.opacity = animalName ? '1' : '0';
-        display.classList.remove('emoji-pop');
+        display.classList.remove('slide-left', 'slide-right');
         void display.offsetWidth; // force reflow
-        display.classList.add('emoji-pop');
+        display.classList.add(direction === 1 ? 'slide-right' : 'slide-left');
 
         const nextIndex = currentIndex + direction;
         if (nextIndex >= 0 && nextIndex < emojis.length) {
