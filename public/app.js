@@ -63,6 +63,7 @@ function getAnimalEmoji(animal) {
   return animalEmojis[name] || '🐾';
 }
 let currentLetter = '';
+let failedLetter = '';
 let isPlaying = false;
 let gameDelay = 1500; // ms between turns
 let leaderboardData = [];
@@ -147,6 +148,9 @@ async function playTurn() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chain, letter: currentLetter })
     });
+
+    // Check if game was stopped while waiting for response
+    if (!isPlaying) return;
 
     const data = await response.json();
 
@@ -245,7 +249,8 @@ async function endGame(reason) {
   learningNoteEl.textContent = 'AI is learning from this game...';
 
   // Show suggestion box with failed letter
-  failedLetterDisplay.textContent = currentLetter.toUpperCase();
+  failedLetter = currentLetter;
+  failedLetterDisplay.textContent = failedLetter.toUpperCase();
   suggestionInput.value = '';
   suggestionResult.textContent = '';
   suggestionResult.className = 'suggestion-result';
@@ -257,7 +262,7 @@ async function endGame(reason) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chain,
-        failedLetter: currentLetter
+        failedLetter: failedLetter
       })
     });
 
@@ -284,7 +289,7 @@ async function saveScore() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chain,
-        failedLetter: currentLetter,
+        failedLetter: failedLetter,
         playerName: name
       })
     });
@@ -676,8 +681,8 @@ async function submitSuggestion() {
   }
 
   // Check starts with correct letter
-  if (!animal.startsWith(currentLetter.toLowerCase())) {
-    suggestionResult.textContent = `"${animal}" doesn't start with ${currentLetter.toUpperCase()}`;
+  if (!animal.startsWith(failedLetter.toLowerCase())) {
+    suggestionResult.textContent = `"${animal}" doesn't start with ${failedLetter.toUpperCase()}`;
     suggestionResult.className = 'suggestion-result error';
     return;
   }
@@ -705,7 +710,7 @@ async function submitSuggestion() {
     const response = await fetch('/api/suggest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ animal, letter: currentLetter })
+      body: JSON.stringify({ animal, letter: failedLetter })
     });
 
     const data = await response.json();
