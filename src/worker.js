@@ -123,21 +123,21 @@ app.post('/api/turn', async (c) => {
 
   const lessons = await getLessons(env);
 
-  const usedAnimals = chain.length > 0
-    ? `Animals already used (cannot repeat): ${chain.join(', ')}`
-    : 'This is the first animal in the chain.';
+  const usedList = chain.length > 0
+    ? chain.map(a => a.toUpperCase()).join(', ')
+    : null;
 
   const strategySection = lessons.length > 0
-    ? `\nSTRATEGY (learned from previous games - APPLY THESE):\n${lessons.map(l => `• ${l}`).join('\n')}\n`
+    ? `\nSTRATEGY:\n${lessons.map(l => `• ${l}`).join('\n')}\n`
     : '';
 
   const prompt = `${BASE_RULES}
 
 CURRENT STATE:
-- You need an animal starting with: ${letter.toUpperCase()}
-- ${usedAnimals}
+- Need animal starting with: ${letter.toUpperCase()}
+${usedList ? `\n⚠️ FORBIDDEN (already used - DO NOT SAY THESE): ${usedList}\n` : ''}
 ${strategySection}
-Name an animal starting with "${letter.toUpperCase()}":`;
+Animal starting with "${letter.toUpperCase()}":`;
 
   try {
     const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
@@ -215,6 +215,39 @@ app.get('/api/lessons', async (c) => {
     return c.json(lessons.slice(-10)); // Last 10
   } catch {
     return c.json([]);
+  }
+});
+
+// User suggestion for what AI should have done
+app.post('/api/suggest', async (c) => {
+  const env = c.env;
+  const { animal, letter } = await c.req.json();
+
+  // Validate
+  const cleanAnimal = animal.trim().toLowerCase();
+  if (!cleanAnimal || cleanAnimal.length < 2) {
+    return c.json({ success: false, error: 'Please enter a valid animal name' });
+  }
+
+  if (!cleanAnimal.startsWith(letter.toLowerCase())) {
+    return c.json({ success: false, error: `"${animal}" doesn't start with ${letter.toUpperCase()}` });
+  }
+
+  // Add to learnings
+  try {
+    const lessons = await env.STRATEGY.get('lessons', 'json') || [];
+    const newLesson = `FOR letter ${letter.toUpperCase()}: Try "${cleanAnimal}" (user suggestion)`;
+
+    // Check if similar lesson exists
+    const exists = lessons.some(l => l.toLowerCase().includes(cleanAnimal));
+    if (!exists) {
+      lessons.push(newLesson);
+      await env.STRATEGY.put('lessons', JSON.stringify(lessons.slice(-20)));
+    }
+
+    return c.json({ success: true, message: `Thanks! AI will remember "${cleanAnimal}" for letter ${letter.toUpperCase()}` });
+  } catch (e) {
+    return c.json({ success: false, error: 'Failed to save suggestion' });
   }
 });
 

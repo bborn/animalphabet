@@ -1,8 +1,9 @@
-// State
+// Animalphabet v2
 let chain = [];
 let currentLetter = '';
 let isPlaying = false;
 let gameDelay = 1500; // ms between turns
+let leaderboardData = [];
 
 // Elements
 const startControls = document.getElementById('start-controls');
@@ -29,6 +30,11 @@ const modalClose = document.getElementById('modal-close');
 const modalTitle = document.getElementById('modal-title');
 const modalStats = document.getElementById('modal-stats');
 const modalChain = document.getElementById('modal-chain');
+const suggestionBox = document.getElementById('suggestion-box');
+const failedLetterDisplay = document.getElementById('failed-letter-display');
+const suggestionInput = document.getElementById('suggestion-input');
+const submitSuggestionBtn = document.getElementById('submit-suggestion-btn');
+const suggestionResult = document.getElementById('suggestion-result');
 
 // Event listeners
 startBtn.addEventListener('click', startGame);
@@ -38,6 +44,9 @@ randomBtn.addEventListener('click', () => {
 });
 playAgainBtn.addEventListener('click', resetGame);
 saveScoreBtn.addEventListener('click', saveScore);
+if (submitSuggestionBtn) {
+  submitSuggestionBtn.addEventListener('click', submitSuggestion);
+}
 
 // Start the game
 async function startGame() {
@@ -154,6 +163,12 @@ async function endGame(reason) {
 
   gameOverReasonEl.textContent = reason;
   learningNoteEl.textContent = 'AI is learning from this game...';
+
+  // Show suggestion box with failed letter
+  failedLetterDisplay.textContent = currentLetter.toUpperCase();
+  suggestionInput.value = '';
+  suggestionResult.textContent = '';
+  suggestionResult.className = 'suggestion-result';
 
   // Submit game for learning
   try {
@@ -283,8 +298,6 @@ function escapeHtml(str) {
 }
 
 // Modal functions
-let leaderboardData = [];
-
 function showChainModal(entry) {
   modalTitle.textContent = `${entry.name}'s Chain`;
 
@@ -325,6 +338,39 @@ modalOverlay.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
+
+// Submit user suggestion
+async function submitSuggestion() {
+  const animal = suggestionInput.value.trim();
+  if (!animal) {
+    suggestionResult.textContent = 'Please enter an animal name';
+    suggestionResult.className = 'suggestion-result error';
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ animal, letter: currentLetter })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      suggestionResult.textContent = data.message;
+      suggestionResult.className = 'suggestion-result';
+      suggestionInput.value = '';
+      loadLessons();
+    } else {
+      suggestionResult.textContent = data.error;
+      suggestionResult.className = 'suggestion-result error';
+    }
+  } catch (e) {
+    suggestionResult.textContent = 'Failed to submit suggestion';
+    suggestionResult.className = 'suggestion-result error';
+  }
+}
 
 // Initial load
 loadLeaderboard();
