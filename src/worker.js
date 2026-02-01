@@ -28,61 +28,57 @@ async function getLessons(env) {
   }
 }
 
-// Save and consolidate lessons
-async function saveLesson(env, newLesson) {
-  if (!env.STRATEGY) return;
+// Update learnings based on game result
+async function updateLearnings(env, chain, failedLetter) {
+  if (!env.STRATEGY) return null;
 
   try {
-    const lessons = await env.STRATEGY.get('lessons', 'json') || [];
+    const currentLearnings = await env.STRATEGY.get('lessons', 'json') || [];
 
-    // If we have enough lessons, periodically consolidate
-    if (lessons.length >= 10 && lessons.length % 5 === 0) {
-      const consolidated = await consolidateLessons(env, lessons, newLesson);
-      await env.STRATEGY.put('lessons', JSON.stringify(consolidated));
-    } else {
-      lessons.push(newLesson);
-      const trimmed = lessons.slice(-50);
-      await env.STRATEGY.put('lessons', JSON.stringify(trimmed));
-    }
-  } catch (e) {
-    console.error('Failed to save lesson:', e);
-  }
-}
+    const prompt = `You manage a LIVING KNOWLEDGE BASE for an Animal Name Game AI.
 
-// Use AI to consolidate and deduplicate lessons
-async function consolidateLessons(env, lessons, newLesson) {
-  try {
-    const prompt = `You are reviewing strategy lessons from an Animal Name Game. The goal is to maintain a concise, non-redundant list of the most useful strategies.
+CURRENT KNOWLEDGE BASE:
+${currentLearnings.length > 0 ? currentLearnings.map((l, i) => `${i + 1}. ${l}`).join('\n') : '(empty - this is the first game)'}
 
-EXISTING LESSONS:
-${lessons.map((l, i) => `${i + 1}. ${l}`).join('\n')}
+GAME JUST PLAYED:
+- Chain length: ${chain.length} animals
+- Got stuck on letter: "${failedLetter.toUpperCase()}"
+- Full chain: ${chain.join(' → ')}
 
-NEW LESSON TO ADD:
-${newLesson}
+ANALYZE this game and UPDATE the knowledge base. You can:
+- ADD new insights discovered from this game
+- UPDATE existing lessons if this game provides better understanding
+- DELETE lessons that this game proved wrong or unhelpful
+- COMBINE similar lessons into stronger ones
+- KEEP lessons that are still valid
 
-Please consolidate these into 8-12 of the MOST IMPORTANT and DISTINCT lessons. Rules:
-- Combine similar lessons into one stronger lesson
-- Remove redundant or contradictory lessons
-- Keep lessons specific and actionable
-- Focus on letter management (avoiding X, using common letters, etc.)
+The goal is a concise, accurate set of 5-15 strategic lessons. Focus on:
+- Which ending letters to avoid (trap letters)
+- Which ending letters are safe
+- Specific animal choices that help or hurt
+- Patterns that lead to long chains
 
-Return ONLY the consolidated lessons, one per line, no numbering.`;
+Return ONLY the updated lessons, one per line. No numbering, no explanations.`;
 
     const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 500
+      max_tokens: 600
     });
 
-    const consolidated = response.response
+    const updated = response.response
       .trim()
       .split('\n')
-      .map(l => l.trim())
-      .filter(l => l.length > 10 && !l.match(/^\d+\./));
+      .map(l => l.trim().replace(/^[-•]\s*/, ''))
+      .filter(l => l.length > 10 && !l.match(/^\d+[\.\)]/));
 
-    return consolidated.length > 0 ? consolidated : [...lessons.slice(-10), newLesson];
+    if (updated.length > 0) {
+      await env.STRATEGY.put('lessons', JSON.stringify(updated));
+      return updated;
+    }
+    return currentLearnings;
   } catch (e) {
-    console.error('Failed to consolidate lessons:', e);
-    return [...lessons.slice(-10), newLesson];
+    console.error('Failed to update learnings:', e);
+    return null;
   }
 }
 
@@ -113,26 +109,6 @@ async function updateLeaderboard(env, entry) {
   }
 }
 
-// Generate a lesson from a failed game
-async function generateLesson(env, chain, failedLetter) {
-  try {
-    const prompt = `A game of the Animal Name Game just ended. The chain was ${chain.length} animals long and got stuck on the letter "${failedLetter.toUpperCase()}".
-
-The chain was: ${chain.join(' → ')}
-
-In ONE short sentence, what strategic lesson can be learned to avoid this in future games? Focus on letter management and which animals to avoid or prefer. Be specific.`;
-
-    const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 100
-    });
-
-    return response.response.trim();
-  } catch (e) {
-    console.error('Failed to generate lesson:', e);
-    return null;
-  }
-}
 
 // Play one turn of the game
 app.post('/api/turn', async (c) => {
@@ -198,12 +174,11 @@ app.post('/api/end-game', async (c) => {
   const env = c.env;
   const { chain, failedLetter, playerName } = await c.req.json();
 
-  // Generate and save lesson
+  let updatedLearnings = null;
+
+  // Update knowledge base based on this game
   if (chain.length > 0 && failedLetter) {
-    const lesson = await generateLesson(env, chain, failedLetter);
-    if (lesson) {
-      await saveLesson(env, lesson);
-    }
+    updatedLearnings = await updateLearnings(env, chain, failedLetter);
   }
 
   // Update leaderboard
@@ -211,12 +186,13 @@ app.post('/api/end-game', async (c) => {
     await updateLeaderboard(env, {
       name: playerName || 'Anonymous',
       length: chain.length,
-      chain: chain, // Store full chain
+      chain: chain,
+      failedLetter: failedLetter,
       date: new Date().toISOString()
     });
   }
 
-  return c.json({ success: true });
+  return c.json({ success: true, learnings: updatedLearnings });
 });
 
 // Get leaderboard

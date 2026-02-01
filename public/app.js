@@ -148,7 +148,7 @@ async function endGame(reason) {
 
   // Submit game for learning
   try {
-    await fetch('/api/end-game', {
+    const response = await fetch('/api/end-game', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -158,7 +158,13 @@ async function endGame(reason) {
       })
     });
 
-    learningNoteEl.textContent = '🧠 AI has learned a new strategy lesson from this game!';
+    const data = await response.json();
+
+    if (data.learnings && data.learnings.length > 0) {
+      learningNoteEl.innerHTML = '🧠 <strong>Knowledge base updated!</strong> AI reviewed and revised its strategy.';
+    } else {
+      learningNoteEl.textContent = '🧠 AI analyzed this game.';
+    }
     loadLessons(); // Refresh lessons display
   } catch (e) {
     learningNoteEl.textContent = '';
