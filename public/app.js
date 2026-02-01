@@ -574,6 +574,24 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Submit user suggestion
+// Confetti celebration
+function createConfetti() {
+  const colors = ['#6366f1', '#8b5cf6', '#d946ef', '#22c55e', '#f59e0b'];
+  const container = document.querySelector('.suggestion-box');
+
+  for (let i = 0; i < 30; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.animationDelay = Math.random() * 0.5 + 's';
+    confetti.style.animationDuration = (Math.random() * 1 + 1) + 's';
+    container.appendChild(confetti);
+
+    setTimeout(() => confetti.remove(), 2000);
+  }
+}
+
 async function checkWikipedia(animal) {
   try {
     const formatted = animal.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('_');
@@ -628,9 +646,22 @@ async function submitSuggestion() {
     const data = await response.json();
 
     if (data.success) {
-      suggestionResult.textContent = `✓ ${animal} added! AI will remember this.`;
-      suggestionResult.className = 'suggestion-result';
+      const emoji = getAnimalEmoji(animal);
+      const celebrations = [
+        `${emoji} Genius! You taught the AI "${animal}"!`,
+        `${emoji} Brilliant! "${animal}" is now in the AI's brain!`,
+        `${emoji} Amazing! The AI just got smarter thanks to you!`,
+        `${emoji} You're a legend! "${animal}" saved for future games!`,
+        `${emoji} Big brain energy! AI will remember "${animal}"!`,
+      ];
+      const msg = celebrations[Math.floor(Math.random() * celebrations.length)];
+      suggestionResult.innerHTML = msg;
+      suggestionResult.className = 'suggestion-result success';
       suggestionInput.value = '';
+
+      // Confetti burst
+      createConfetti();
+
       loadLessons();
     } else {
       suggestionResult.textContent = data.error;
