@@ -3,103 +3,6 @@ let chain = [];
 let currentLetter = '';
 let isPlaying = false;
 let gameDelay = 1500; // ms between turns
-let audioCtx = null;
-const MAX_CHAIN_LENGTH = 300; // Safety limit
-
-// Sound effects using Web Audio API
-function initAudio() {
-  try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-    return audioCtx;
-  } catch (e) {
-    console.warn('Audio not available:', e);
-    return null;
-  }
-}
-
-function playPop() {
-  try {
-    const ctx = initAudio();
-    if (!ctx) return;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.05);
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
-
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.15);
-  } catch (e) {
-    console.warn('Sound error:', e);
-  }
-}
-
-function playMilestone() {
-  try {
-    const ctx = initAudio();
-    if (!ctx) return;
-
-    const notes = [523, 659, 784, 1047];
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.frequency.value = freq;
-      osc.type = 'sine';
-
-      const startTime = ctx.currentTime + i * 0.1;
-      gain.gain.setValueAtTime(0.2, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.3);
-    });
-  } catch (e) {
-    console.warn('Sound error:', e);
-  }
-}
-
-function playGameOver() {
-  try {
-    const ctx = initAudio();
-    if (!ctx) return;
-
-    const notes = [400, 350, 300, 200];
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.frequency.value = freq;
-      osc.type = 'sawtooth';
-
-      const startTime = ctx.currentTime + i * 0.15;
-      gain.gain.setValueAtTime(0.15, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.25);
-    });
-  } catch (e) {
-    console.warn('Sound error:', e);
-  }
-}
 
 // Elements
 const startControls = document.getElementById('start-controls');
@@ -138,8 +41,6 @@ saveScoreBtn.addEventListener('click', saveScore);
 
 // Start the game
 async function startGame() {
-  initAudio(); // Init audio on user interaction
-
   let letter = startLetterInput.value.trim().toUpperCase();
   if (!letter || !/^[A-Z]$/.test(letter)) {
     letter = 'A'; // Default
@@ -165,12 +66,6 @@ async function startGame() {
 async function playTurn() {
   if (!isPlaying) return;
 
-  // Safety limit
-  if (chain.length >= MAX_CHAIN_LENGTH) {
-    endGame(`Incredible! Hit the ${MAX_CHAIN_LENGTH} animal limit!`);
-    return;
-  }
-
   try {
     const response = await fetch('/api/turn', {
       method: 'POST',
@@ -192,13 +87,6 @@ async function playTurn() {
     // Update display
     addAnimalToDisplay(data.animal, chain.length);
     updateStats();
-
-    // Sound effects
-    if (chain.length % 25 === 0) {
-      playMilestone();
-    } else {
-      playPop();
-    }
 
     // Continue after delay
     setTimeout(playTurn, gameDelay);
@@ -247,29 +135,9 @@ function updateStats() {
   currentLetterEl.textContent = currentLetter.toUpperCase();
 }
 
-// Add failed letter indicator to chain
-function addFailedLetterToDisplay(letter) {
-  const el = document.createElement('span');
-  el.className = 'animal failed new';
-
-  el.innerHTML = `
-    <span class="number">✗</span>
-    <span class="letter">${letter.toUpperCase()}</span>???
-  `;
-
-  chainEl.appendChild(el);
-
-  const container = document.querySelector('.chain-container');
-  container.scrollTop = container.scrollHeight;
-}
-
 // End the game
 async function endGame(reason) {
   isPlaying = false;
-  playGameOver();
-
-  // Show the failed letter in the chain
-  addFailedLetterToDisplay(currentLetter);
 
   statusEl.innerHTML = '';
   gameOverEl.style.display = 'block';
