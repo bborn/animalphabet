@@ -24,14 +24,18 @@ async function checkRateLimit(env) {
   return true;
 }
 
-// Validate animal exists on Wikipedia
+// Validate animal exists on Wikipedia using their REST API
 async function validateAnimal(animal) {
   try {
     const formatted = animal.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('_');
-    const url = `https://en.wikipedia.org/wiki/${formatted}`;
-    const response = await fetch(url, { method: 'HEAD' });
-    return response.ok;
-  } catch {
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${formatted}`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Animalphabet/1.0 (https://animalphabet.bruno-bornsztein.workers.dev)' }
+    });
+    console.log(`  Wikipedia API: ${url} -> ${response.status}`);
+    return response.status === 200;
+  } catch (e) {
+    console.log(`  Wikipedia API error: ${e.message}`);
     return false;
   }
 }
@@ -224,31 +228,39 @@ Animal starting with "${letter.toUpperCase()}":`;
       });
 
       const rawResponse = response.response;
+      console.log(`Attempt ${attempts}: Raw response = "${rawResponse}"`);
 
       // Check if stuck
       if (rawResponse.toLowerCase().includes('stuck')) {
+        console.log('  -> Rejected: stuck');
         continue;
       }
 
       // Parse out the animal name from potentially messy response
       let candidate = parseAnimalName(rawResponse, letter);
+      console.log(`  -> Parsed: "${candidate}"`);
       if (!candidate) {
+        console.log('  -> Rejected: parse failed');
         continue;
       }
 
       // Validate: starts with correct letter?
       if (!candidate.startsWith(letter.toLowerCase())) {
+        console.log(`  -> Rejected: wrong letter (got ${candidate[0]}, need ${letter})`);
         continue;
       }
 
       // Validate: not a repeat?
       if (chain.map(a => a.toLowerCase()).includes(candidate)) {
+        console.log('  -> Rejected: repeat');
         continue;
       }
 
       // Validate: is a real animal on Wikipedia?
       const isReal = await validateAnimal(candidate);
+      console.log(`  -> Wikipedia check: ${isReal}`);
       if (!isReal) {
+        console.log('  -> Rejected: not on Wikipedia');
         continue;
       }
 
