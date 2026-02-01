@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animalphabet - The Animal Name Game</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🦁 Animalphabet</h1>
+      <p class="subtitle">Watch AI play the animal name game — and learn from its mistakes</p>
+    </header>
+
+    <main>
+      <section class="game-section" id="game-section">
+        <div class="start-controls" id="start-controls">
+          <label for="start-letter">Start with letter:</label>
+          <input type="text" id="start-letter" maxlength="1" placeholder="A" value="">
+          <button id="start-btn" class="btn primary">Start Game</button>
+          <button id="random-btn" class="btn secondary">Random Letter</button>
+        </div>
+
+        <div class="game-display" id="game-display" style="display: none;">
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-value" id="chain-count">0</span>
+              <span class="stat-label">Chain Length</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value" id="current-letter">-</span>
+              <span class="stat-label">Current Letter</span>
+            </div>
+          </div>
+
+          <div class="chain-container">
+            <div class="chain" id="chain"></div>
+          </div>
+
+          <div class="status" id="status">
+            <span class="thinking">Thinking...</span>
+          </div>
+
+          <div class="game-over" id="game-over" style="display: none;">
+            <h2 id="game-over-title">Game Over!</h2>
+            <p id="game-over-reason"></p>
+            <div class="name-input">
+              <input type="text" id="player-name" placeholder="Your name for leaderboard" maxlength="20">
+              <button id="save-score-btn" class="btn primary">Save Score</button>
+            </div>
+            <button id="play-again-btn" class="btn secondary">Play Again</button>
+            <p class="learning-note" id="learning-note"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="leaderboard-section">
+        <h2>🏆 Leaderboard</h2>
+        <div class="leaderboard" id="leaderboard">
+          <p class="loading">Loading...</p>
+        </div>
+      </section>
+
+      <section class="lessons-section">
+        <h2>🧠 What AI Has Learned</h2>
+        <div class="lessons" id="lessons">
+          <p class="loading">Loading...</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>Built with Cloudflare Workers AI • <a href="https://github.com/YOUR_USERNAME/animalphabet">GitHub</a></p>
+    </footer>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

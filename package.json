@@ -1,0 +1,17 @@
+{
+  "name": "animalphabet",
+  "version": "1.0.0",
+  "description": "The Animal Name Game - powered by AI with learning memory",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "setup-kv": "wrangler kv:namespace create STRATEGY && wrangler kv:namespace create LEADERBOARD"
+  },
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

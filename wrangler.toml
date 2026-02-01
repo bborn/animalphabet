@@ -1,0 +1,17 @@
+name = "animalphabet"
+main = "src/worker.js"
+compatibility_date = "2024-01-01"
+
+[assets]
+directory = "./public"
+
+[[kv_namespaces]]
+binding = "STRATEGY"
+id = "da47acc4567943749d8d222fb0b3cd13"
+
+[[kv_namespaces]]
+binding = "LEADERBOARD"
+id = "463bd44bd39c4047b2973b8dddd0fa70"
+
+[ai]
+binding = "AI"
