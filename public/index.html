@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="container">
+  <div class="page-wrapper">
     <header>
       <a href="/" class="logo-link">
         <h1>🦁 <span class="ai-letter">A</span>n<span class="ai-letter">i</span>malphabet</h1>
@@ -18,7 +18,19 @@
       <p class="subtitle">Watch AI play the animal name game — and learn from its mistakes</p>
     </header>
 
-    <main>
+    <div class="layout-wrapper">
+      <aside class="live-sidebar">
+        <h3>🎮 Live Games</h3>
+        <div id="live-games">
+          <p class="empty">No games in progress</p>
+        </div>
+        <div class="connection-status" id="connection-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Connecting...</span>
+        </div>
+      </aside>
+
+      <main>
       <section class="game-section" id="game-section">
         <div class="start-controls" id="start-controls">
           <label for="start-letter">Start with letter:</label>
@@ -85,7 +97,8 @@
           <p class="loading">Loading...</p>
         </div>
       </section>
-    </main>
+      </main>
+    </div>
 
     <footer>
       <p>Built with Cloudflare Workers AI • <a href="https://github.com/bborn/animalphabet">GitHub</a></p>

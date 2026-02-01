@@ -1,6 +1,150 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
+// GameRoom Durable Object for managing live game broadcasts
+export class GameRoom {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.sessions = new Map(); // WebSocket -> session info
+    this.games = new Map(); // gameId -> game state
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    // Handle WebSocket upgrade
+    if (request.headers.get('Upgrade') === 'websocket') {
+      const pair = new WebSocketPair();
+      const [client, server] = Object.values(pair);
+
+      server.accept();
+
+      const sessionId = crypto.randomUUID();
+      this.sessions.set(server, { id: sessionId });
+
+      // Send current games to new connection
+      const activeGames = Array.from(this.games.values());
+      server.send(JSON.stringify({ type: 'init', games: activeGames }));
+
+      server.addEventListener('message', async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          await this.handleMessage(server, data);
+        } catch (e) {
+          console.error('WebSocket message error:', e);
+        }
+      });
+
+      server.addEventListener('close', () => {
+        const session = this.sessions.get(server);
+        if (session && session.gameId) {
+          // Clean up game when player disconnects
+          this.games.delete(session.gameId);
+          this.broadcast({ type: 'end', gameId: session.gameId, reason: 'disconnected' });
+        }
+        this.sessions.delete(server);
+      });
+
+      server.addEventListener('error', () => {
+        this.sessions.delete(server);
+      });
+
+      return new Response(null, { status: 101, webSocket: client });
+    }
+
+    // Handle HTTP broadcast requests
+    if (url.pathname === '/broadcast' && request.method === 'POST') {
+      const data = await request.json();
+      await this.handleBroadcast(data);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response('Not found', { status: 404 });
+  }
+
+  async handleMessage(ws, data) {
+    const session = this.sessions.get(ws);
+    if (!session) return;
+
+    switch (data.type) {
+      case 'start':
+        session.gameId = data.gameId;
+        this.games.set(data.gameId, {
+          gameId: data.gameId,
+          player: data.player,
+          chain: [],
+          currentLetter: data.letter,
+          startTime: Date.now()
+        });
+        this.broadcast({ type: 'start', ...this.games.get(data.gameId) }, ws);
+        break;
+
+      case 'move':
+        if (session.gameId && this.games.has(session.gameId)) {
+          const game = this.games.get(session.gameId);
+          game.chain.push(data.animal);
+          game.currentLetter = data.nextLetter;
+          this.broadcast({ type: 'move', gameId: session.gameId, animal: data.animal, nextLetter: data.nextLetter, chainLength: game.chain.length }, ws);
+        }
+        break;
+
+      case 'end':
+        if (session.gameId) {
+          this.games.delete(session.gameId);
+          this.broadcast({ type: 'end', gameId: session.gameId, reason: data.reason, chainLength: data.chainLength }, ws);
+          session.gameId = null;
+        }
+        break;
+    }
+  }
+
+  async handleBroadcast(data) {
+    // Handle broadcasts from HTTP endpoint
+    switch (data.type) {
+      case 'start':
+        this.games.set(data.gameId, {
+          gameId: data.gameId,
+          player: data.player,
+          chain: [],
+          currentLetter: data.letter,
+          startTime: Date.now()
+        });
+        this.broadcast({ type: 'start', ...this.games.get(data.gameId) });
+        break;
+
+      case 'move':
+        if (this.games.has(data.gameId)) {
+          const game = this.games.get(data.gameId);
+          game.chain.push(data.animal);
+          game.currentLetter = data.nextLetter;
+          this.broadcast({ type: 'move', gameId: data.gameId, animal: data.animal, nextLetter: data.nextLetter, chainLength: game.chain.length });
+        }
+        break;
+
+      case 'end':
+        this.games.delete(data.gameId);
+        this.broadcast({ type: 'end', gameId: data.gameId, reason: data.reason, chainLength: data.chainLength });
+        break;
+    }
+  }
+
+  broadcast(message, excludeWs = null) {
+    const json = JSON.stringify(message);
+    for (const [ws, session] of this.sessions) {
+      if (ws !== excludeWs && ws.readyState === 1) {
+        try {
+          ws.send(json);
+        } catch (e) {
+          // WebSocket might be closed
+        }
+      }
+    }
+  }
+}
+
 const app = new Hono();
 
 app.use('*', cors());
@@ -367,6 +511,28 @@ app.post('/api/suggest', async (c) => {
   } catch (e) {
     return c.json({ success: false, error: 'Failed to save suggestion' });
   }
+});
+
+// WebSocket route for live games
+app.get('/ws/games', async (c) => {
+  const id = c.env.GAME_ROOM.idFromName('global');
+  const room = c.env.GAME_ROOM.get(id);
+  return room.fetch(c.req.raw);
+});
+
+// HTTP broadcast endpoint (alternative to WebSocket messages)
+app.post('/api/broadcast', async (c) => {
+  const id = c.env.GAME_ROOM.idFromName('global');
+  const room = c.env.GAME_ROOM.get(id);
+
+  const data = await c.req.json();
+  const broadcastUrl = new URL('/broadcast', c.req.url);
+
+  return room.fetch(new Request(broadcastUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }));
 });
 
 export default app;

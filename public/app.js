@@ -1,5 +1,9 @@
 // Animalphabet v2
 let chain = [];
+let gameId = null;
+let liveGames = new Map(); // gameId -> game state
+let ws = null;
+let wsReconnectTimeout = null;
 
 // Animal emoji mapping
 const animalEmojis = {
@@ -125,6 +129,10 @@ async function startGame() {
   currentLetter = letter.toLowerCase();
   isPlaying = true;
 
+  // Broadcast game start
+  const playerName = playerNameInput.value.trim() || 'Anonymous';
+  broadcastGameStart(letter, playerName);
+
   // Update UI
   startControls.style.display = 'none';
   gameDisplay.style.display = 'block';
@@ -162,6 +170,9 @@ async function playTurn() {
     // Add animal to chain
     chain.push(data.animal);
     currentLetter = data.nextLetter;
+
+    // Broadcast the move
+    broadcastMove(data.animal, data.nextLetter);
 
     // Update display
     addAnimalToDisplay(data.animal, chain.length);
@@ -230,6 +241,9 @@ function updateStats() {
 // End the game
 async function endGame(reason) {
   isPlaying = false;
+
+  // Broadcast game end
+  broadcastGameEnd(reason, chain.length);
 
   statusEl.innerHTML = '';
   gameOverEl.style.display = 'block';
@@ -313,6 +327,7 @@ function resetGame() {
   chain = [];
   currentLetter = '';
   isPlaying = false;
+  gameId = null;
 
   startControls.style.display = 'flex';
   gameDisplay.style.display = 'none';
@@ -743,6 +758,166 @@ async function submitSuggestion() {
   }
 }
 
+// Live games WebSocket connection
+function connectToLiveGames() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${location.host}/ws/games`;
+
+  ws = new WebSocket(wsUrl);
+
+  ws.addEventListener('open', () => {
+    console.log('Connected to live games');
+    updateConnectionStatus('connected');
+    if (wsReconnectTimeout) {
+      clearTimeout(wsReconnectTimeout);
+      wsReconnectTimeout = null;
+    }
+  });
+
+  ws.addEventListener('message', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      handleLiveGameMessage(data);
+    } catch (e) {
+      console.error('Failed to parse WebSocket message:', e);
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    console.log('Disconnected from live games');
+    updateConnectionStatus('disconnected');
+    // Reconnect after delay
+    wsReconnectTimeout = setTimeout(connectToLiveGames, 3000);
+  });
+
+  ws.addEventListener('error', (e) => {
+    console.error('WebSocket error:', e);
+    updateConnectionStatus('disconnected');
+  });
+}
+
+function updateConnectionStatus(status) {
+  const statusEl = document.getElementById('connection-status');
+  if (!statusEl) return;
+
+  statusEl.className = `connection-status ${status}`;
+  const textEl = statusEl.querySelector('.status-text');
+  if (textEl) {
+    textEl.textContent = status === 'connected' ? 'Live' : status === 'disconnected' ? 'Reconnecting...' : 'Connecting...';
+  }
+}
+
+function handleLiveGameMessage(data) {
+  switch (data.type) {
+    case 'init':
+      // Initial list of active games
+      liveGames.clear();
+      if (data.games) {
+        data.games.forEach(game => {
+          if (game.gameId !== gameId) { // Don't show own game
+            liveGames.set(game.gameId, game);
+          }
+        });
+      }
+      renderLiveGames();
+      break;
+
+    case 'start':
+      if (data.gameId !== gameId) {
+        liveGames.set(data.gameId, {
+          gameId: data.gameId,
+          player: data.player,
+          chain: data.chain || [],
+          currentLetter: data.currentLetter,
+          startTime: data.startTime
+        });
+        renderLiveGames();
+      }
+      break;
+
+    case 'move':
+      if (data.gameId !== gameId && liveGames.has(data.gameId)) {
+        const game = liveGames.get(data.gameId);
+        game.chain = game.chain || [];
+        game.chain.push(data.animal);
+        game.currentLetter = data.nextLetter;
+        renderLiveGames();
+      }
+      break;
+
+    case 'end':
+      liveGames.delete(data.gameId);
+      renderLiveGames();
+      break;
+  }
+}
+
+function renderLiveGames() {
+  const container = document.getElementById('live-games');
+  if (!container) return;
+
+  if (liveGames.size === 0) {
+    container.innerHTML = '<p class="empty">No games in progress</p>';
+    return;
+  }
+
+  const gamesHtml = Array.from(liveGames.values()).map(game => {
+    const chainLength = game.chain ? game.chain.length : 0;
+    const lastAnimal = game.chain && game.chain.length > 0 ? game.chain[game.chain.length - 1] : null;
+    const emoji = lastAnimal ? getAnimalEmoji(lastAnimal) : '🐾';
+
+    return `
+      <div class="live-game-card active">
+        <div class="player-name">${escapeHtml(game.player || 'Anonymous')}</div>
+        <div class="game-stats">
+          <span class="chain-length">${chainLength}</span>
+          <span class="current-letter">${(game.currentLetter || '?').toUpperCase()}</span>
+        </div>
+        ${lastAnimal ? `<div class="last-animal"><span class="emoji">${emoji}</span>${escapeHtml(lastAnimal)}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = gamesHtml;
+}
+
+// Broadcast game events
+function broadcastGameStart(letter, playerName) {
+  gameId = crypto.randomUUID();
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'start',
+      gameId,
+      player: playerName || 'Anonymous',
+      letter: letter.toLowerCase()
+    }));
+  }
+}
+
+function broadcastMove(animal, nextLetter) {
+  if (ws && ws.readyState === WebSocket.OPEN && gameId) {
+    ws.send(JSON.stringify({
+      type: 'move',
+      gameId,
+      animal,
+      nextLetter
+    }));
+  }
+}
+
+function broadcastGameEnd(reason, chainLength) {
+  if (ws && ws.readyState === WebSocket.OPEN && gameId) {
+    ws.send(JSON.stringify({
+      type: 'end',
+      gameId,
+      reason,
+      chainLength
+    }));
+  }
+  gameId = null;
+}
+
 // Initial load
+connectToLiveGames();
 loadLeaderboard();
 loadLessons();

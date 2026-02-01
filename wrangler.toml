@@ -22,3 +22,11 @@ AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 [[routes]]
 pattern = "animals.whinynil.co"
 custom_domain = true
+
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]
