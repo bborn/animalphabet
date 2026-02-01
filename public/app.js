@@ -318,6 +318,34 @@ function resetGame() {
   playerNameInput.value = '';
 }
 
+// Get fun title based on chain length
+function getTitle(length) {
+  if (length >= 75) return { title: 'Legend', icon: '👑' };
+  if (length >= 50) return { title: 'Animal Whisperer', icon: '🧙' };
+  if (length >= 35) return { title: 'Safari Master', icon: '🏆' };
+  if (length >= 25) return { title: 'Wildlife Expert', icon: '🎓' };
+  if (length >= 15) return { title: 'Zookeeper', icon: '🦁' };
+  if (length >= 10) return { title: 'Nature Lover', icon: '🌿' };
+  if (length >= 5) return { title: 'Beginner', icon: '🐣' };
+  return { title: 'Tourist', icon: '📸' };
+}
+
+// Calculate joined chain length
+function getChainWordLength(chain) {
+  if (!chain || chain.length === 0) return 0;
+  let len = chain[0].length;
+  for (let i = 1; i < chain.length; i++) {
+    len += chain[i].length - 1;
+  }
+  return len;
+}
+
+// Get all emojis for chain
+function getChainEmojis(chain) {
+  if (!chain || chain.length === 0) return ['🐾'];
+  return chain.map(a => getAnimalEmoji(a));
+}
+
 // Load leaderboard
 async function loadLeaderboard() {
   try {
@@ -331,25 +359,149 @@ async function loadLeaderboard() {
 
     leaderboardEl.innerHTML = leaderboardData.slice(0, 10).map((entry, i) => {
       const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-      const preview = entry.chain ? entry.chain.slice(0, 3).join(' → ') + '...' : '';
+      const { title, icon } = getTitle(entry.length);
+      const emojis = getChainEmojis(entry.chain);
+      const firstEmoji = emojis[0];
+      const lastEmoji = emojis[emojis.length - 1];
+      const wordLength = getChainWordLength(entry.chain);
+      const deathLetter = entry.failedLetter ? entry.failedLetter.toUpperCase() : '?';
+
+      const animalNames = entry.chain ? entry.chain.join('|') : '';
+      const firstName = entry.chain ? entry.chain[0] : '?';
+      const lastName = entry.chain ? entry.chain[entry.chain.length - 1] : '?';
 
       return `
-        <div class="leaderboard-entry" data-index="${i}">
+        <div class="leaderboard-entry" data-index="${i}" data-emojis="${emojis.join('|')}" data-animals="${animalNames}">
           <span class="rank ${rankClass}">${i + 1}</span>
+          <div class="emoji-parade">
+            <span class="emoji-display">${firstEmoji}</span>
+            <span class="emoji-arrow">→</span>
+            <span class="emoji-last">${lastEmoji}</span>
+            <span class="emoji-tooltip"></span>
+          </div>
           <div class="info">
-            <div class="name">${escapeHtml(entry.name)}</div>
-            <div class="preview">${preview}</div>
+            <div class="name-row">
+              <span class="name">${escapeHtml(entry.name)}</span>
+              <span class="title">${icon} ${title}</span>
+            </div>
+            <div class="chain-summary">${firstName} → ${lastName}</div>
+            <div class="stats-row">
+              <span class="word-length">${wordLength} letters</span>
+              <span class="death">💀 ${deathLetter}</span>
+            </div>
           </div>
           <span class="score">${entry.length}</span>
         </div>
       `;
     }).join('');
 
-    // Add click handlers
+    // Add click handlers and hover animation
     leaderboardEl.querySelectorAll('.leaderboard-entry').forEach(el => {
       el.addEventListener('click', () => {
         const index = parseInt(el.dataset.index);
         showChainModal(leaderboardData[index]);
+      });
+
+      // Emoji animation on hover with proximity slowdown and pause
+      const emojis = el.dataset.emojis ? el.dataset.emojis.split('|') : [];
+      const animals = el.dataset.animals ? el.dataset.animals.split('|') : [];
+      const display = el.querySelector('.emoji-display');
+      const arrow = el.querySelector('.emoji-arrow');
+      const last = el.querySelector('.emoji-last');
+      const tooltip = el.querySelector('.emoji-tooltip');
+      let animationId = null;
+      let currentIndex = 0;
+      let proximity = 1; // 0 = close, 1 = far
+      let paused = false;
+      let isAnimating = false;
+
+      el.addEventListener('mousemove', (e) => {
+        const rect = display.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dist = Math.hypot(e.clientX - centerX, e.clientY - centerY);
+        const maxDist = 150;
+        proximity = Math.min(dist / maxDist, 1);
+      });
+
+      display.addEventListener('mouseenter', () => {
+        paused = true;
+        if (animationId) clearTimeout(animationId);
+      });
+
+      display.addEventListener('mouseleave', () => {
+        paused = false;
+        if (isAnimating && currentIndex < emojis.length) {
+          scheduleNext();
+        }
+      });
+
+      tooltip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const animal = tooltip.textContent;
+        if (animal) {
+          window.open(getWikiUrl(animal), '_blank');
+        }
+      });
+
+      tooltip.addEventListener('mouseenter', () => {
+        paused = true;
+        if (animationId) clearTimeout(animationId);
+      });
+
+      tooltip.addEventListener('mouseleave', () => {
+        paused = false;
+        if (isAnimating && currentIndex < emojis.length) {
+          scheduleNext();
+        }
+      });
+
+      const scheduleNext = () => {
+        const progress = currentIndex / emojis.length;
+        const baseDelay = 80 + Math.pow(progress, 2) * 300;
+        const delay = baseDelay + (1 - proximity) * 400;
+        animationId = setTimeout(animate, delay);
+      };
+
+      const animate = () => {
+        if (paused) return;
+
+        display.textContent = emojis[currentIndex];
+        const animalName = animals[currentIndex] || '';
+        tooltip.textContent = animalName;
+        tooltip.style.opacity = animalName ? '1' : '0';
+        display.classList.remove('emoji-pop');
+        void display.offsetWidth; // force reflow
+        display.classList.add('emoji-pop');
+
+        currentIndex++;
+        if (currentIndex < emojis.length) {
+          scheduleNext();
+        } else {
+          isAnimating = false;
+        }
+      };
+
+      el.addEventListener('mouseenter', () => {
+        if (emojis.length <= 1) return;
+        arrow.style.opacity = '0';
+        last.style.opacity = '0';
+        currentIndex = 0;
+        isAnimating = true;
+        paused = false;
+        animate();
+      });
+
+      el.addEventListener('mouseleave', () => {
+        if (animationId) clearTimeout(animationId);
+        isAnimating = false;
+        paused = false;
+        display.textContent = emojis[0];
+        display.classList.remove('emoji-pop');
+        arrow.style.opacity = '';
+        last.style.opacity = '';
+        tooltip.style.opacity = '0';
+        proximity = 1;
       });
     });
   } catch (e) {
