@@ -415,6 +415,7 @@ async function loadLeaderboard() {
       let paused = false;
       let isAnimating = false;
       let direction = 1; // 1 = forward, -1 = reverse
+      let stoppedAtEdge = false;
 
       el.addEventListener('mousemove', (e) => {
         const rect = display.getBoundingClientRect();
@@ -425,7 +426,20 @@ async function loadLeaderboard() {
         proximity = Math.min(dist / maxDist, 1);
 
         // Left of emoji = reverse, right = forward
-        direction = e.clientX < centerX ? -1 : 1;
+        const newDirection = e.clientX < centerX ? -1 : 1;
+
+        // If direction changed and we're stopped at an edge, restart animation
+        if (newDirection !== direction) {
+          direction = newDirection;
+          if (stoppedAtEdge && isAnimating && !paused) {
+            const nextIndex = currentIndex + direction;
+            if (nextIndex >= 0 && nextIndex < emojis.length) {
+              stoppedAtEdge = false;
+              currentIndex = nextIndex;
+              animate();
+            }
+          }
+        }
       });
 
       tooltip.addEventListener('click', (e) => {
@@ -518,14 +532,11 @@ async function loadLeaderboard() {
         const nextIndex = currentIndex + direction;
         if (nextIndex >= 0 && nextIndex < emojis.length) {
           currentIndex = nextIndex;
+          stoppedAtEdge = false;
           scheduleNext();
         } else {
-          // Bounce: reverse direction at edges
-          direction *= -1;
-          currentIndex += direction;
-          if (currentIndex >= 0 && currentIndex < emojis.length) {
-            scheduleNext();
-          }
+          // Stop at edges - don't loop or bounce
+          stoppedAtEdge = true;
         }
       };
 
@@ -542,6 +553,7 @@ async function loadLeaderboard() {
 
         isAnimating = true;
         paused = false;
+        stoppedAtEdge = false;
         animate();
       });
 
