@@ -30,18 +30,61 @@ async function getStrategyContext(env) {
   }
 }
 
-// Save a new lesson learned
-async function saveLesson(env, lesson) {
+// Save and consolidate lessons
+async function saveLesson(env, newLesson) {
   if (!env.STRATEGY) return;
 
   try {
     const lessons = await env.STRATEGY.get('lessons', 'json') || [];
-    lessons.push(lesson);
-    // Keep only last 100 lessons
-    const trimmed = lessons.slice(-100);
-    await env.STRATEGY.put('lessons', JSON.stringify(trimmed));
+
+    // If we have enough lessons, periodically consolidate
+    if (lessons.length >= 10 && lessons.length % 5 === 0) {
+      const consolidated = await consolidateLessons(env, lessons, newLesson);
+      await env.STRATEGY.put('lessons', JSON.stringify(consolidated));
+    } else {
+      lessons.push(newLesson);
+      const trimmed = lessons.slice(-50);
+      await env.STRATEGY.put('lessons', JSON.stringify(trimmed));
+    }
   } catch (e) {
     console.error('Failed to save lesson:', e);
+  }
+}
+
+// Use AI to consolidate and deduplicate lessons
+async function consolidateLessons(env, lessons, newLesson) {
+  try {
+    const prompt = `You are reviewing strategy lessons from an Animal Name Game. The goal is to maintain a concise, non-redundant list of the most useful strategies.
+
+EXISTING LESSONS:
+${lessons.map((l, i) => `${i + 1}. ${l}`).join('\n')}
+
+NEW LESSON TO ADD:
+${newLesson}
+
+Please consolidate these into 8-12 of the MOST IMPORTANT and DISTINCT lessons. Rules:
+- Combine similar lessons into one stronger lesson
+- Remove redundant or contradictory lessons
+- Keep lessons specific and actionable
+- Focus on letter management (avoiding X, using common letters, etc.)
+
+Return ONLY the consolidated lessons, one per line, no numbering.`;
+
+    const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 500
+    });
+
+    const consolidated = response.response
+      .trim()
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 10 && !l.match(/^\d+\./));
+
+    return consolidated.length > 0 ? consolidated : [...lessons.slice(-10), newLesson];
+  } catch (e) {
+    console.error('Failed to consolidate lessons:', e);
+    return [...lessons.slice(-10), newLesson];
   }
 }
 
@@ -162,7 +205,7 @@ app.post('/api/end-game', async (c) => {
     await updateLeaderboard(env, {
       name: playerName || 'Anonymous',
       length: chain.length,
-      chain: chain.slice(0, 5), // Store first 5 for display
+      chain: chain, // Store full chain
       date: new Date().toISOString()
     });
   }

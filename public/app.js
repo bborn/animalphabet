@@ -23,6 +23,12 @@ const saveScoreBtn = document.getElementById('save-score-btn');
 const playAgainBtn = document.getElementById('play-again-btn');
 const leaderboardEl = document.getElementById('leaderboard');
 const lessonsEl = document.getElementById('lessons');
+const modalOverlay = document.getElementById('modal-overlay');
+const modal = document.getElementById('modal');
+const modalClose = document.getElementById('modal-close');
+const modalTitle = document.getElementById('modal-title');
+const modalStats = document.getElementById('modal-stats');
+const modalChain = document.getElementById('modal-chain');
 
 // Event listeners
 startBtn.addEventListener('click', startGame);
@@ -200,19 +206,19 @@ function resetGame() {
 async function loadLeaderboard() {
   try {
     const response = await fetch('/api/leaderboard');
-    const scores = await response.json();
+    leaderboardData = await response.json();
 
-    if (scores.length === 0) {
+    if (leaderboardData.length === 0) {
       leaderboardEl.innerHTML = '<p class="empty">No scores yet. Be the first!</p>';
       return;
     }
 
-    leaderboardEl.innerHTML = scores.slice(0, 10).map((entry, i) => {
+    leaderboardEl.innerHTML = leaderboardData.slice(0, 10).map((entry, i) => {
       const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
       const preview = entry.chain ? entry.chain.slice(0, 3).join(' → ') + '...' : '';
 
       return `
-        <div class="leaderboard-entry">
+        <div class="leaderboard-entry" data-index="${i}">
           <span class="rank ${rankClass}">${i + 1}</span>
           <div class="info">
             <div class="name">${escapeHtml(entry.name)}</div>
@@ -222,6 +228,14 @@ async function loadLeaderboard() {
         </div>
       `;
     }).join('');
+
+    // Add click handlers
+    leaderboardEl.querySelectorAll('.leaderboard-entry').forEach(el => {
+      el.addEventListener('click', () => {
+        const index = parseInt(el.dataset.index);
+        showChainModal(leaderboardData[index]);
+      });
+    });
   } catch (e) {
     leaderboardEl.innerHTML = '<p class="empty">Failed to load leaderboard</p>';
   }
@@ -252,6 +266,50 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// Modal functions
+let leaderboardData = [];
+
+function showChainModal(entry) {
+  modalTitle.textContent = `${entry.name}'s Chain`;
+
+  const date = new Date(entry.date).toLocaleDateString();
+  modalStats.innerHTML = `
+    <div class="stat">
+      <span class="stat-value">${entry.length}</span>
+      <span class="stat-label">Animals</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">${date}</span>
+      <span class="stat-label">Date</span>
+    </div>
+  `;
+
+  modalChain.innerHTML = entry.chain.map((animal, i) => {
+    const firstLetter = animal[0].toUpperCase();
+    const lastLetter = animal.slice(-1).toUpperCase();
+    return `
+      <span class="animal">
+        <span class="number">${i + 1}</span>
+        <span class="letter">${firstLetter}</span>${animal.slice(1, -1)}<span class="letter">${lastLetter}</span>
+      </span>
+    `;
+  }).join('');
+
+  modalOverlay.classList.add('active');
+}
+
+function closeModal() {
+  modalOverlay.classList.remove('active');
+}
+
+modalClose.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) closeModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
 
 // Initial load
 loadLeaderboard();
