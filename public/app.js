@@ -4,76 +4,101 @@ let currentLetter = '';
 let isPlaying = false;
 let gameDelay = 1500; // ms between turns
 let audioCtx = null;
+const MAX_CHAIN_LENGTH = 300; // Safety limit
 
 // Sound effects using Web Audio API
 function initAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  } catch (e) {
+    console.warn('Audio not available:', e);
+    return null;
   }
-  return audioCtx;
 }
 
 function playPop() {
-  const ctx = initAudio();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  try {
+    const ctx = initAudio();
+    if (!ctx) return;
 
-  osc.connect(gain);
-  gain.connect(ctx.destination);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-  osc.frequency.setValueAtTime(880, ctx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.05);
-  osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
 
-  gain.gain.setValueAtTime(0.3, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
 
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch (e) {
+    console.warn('Sound error:', e);
+  }
 }
 
 function playMilestone() {
-  const ctx = initAudio();
-  const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+  try {
+    const ctx = initAudio();
+    if (!ctx) return;
 
-  notes.forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
 
-    osc.frequency.value = freq;
-    osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.type = 'sine';
 
-    const startTime = ctx.currentTime + i * 0.1;
-    gain.gain.setValueAtTime(0.2, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+      const startTime = ctx.currentTime + i * 0.1;
+      gain.gain.setValueAtTime(0.2, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
 
-    osc.start(startTime);
-    osc.stop(startTime + 0.3);
-  });
+      osc.start(startTime);
+      osc.stop(startTime + 0.3);
+    });
+  } catch (e) {
+    console.warn('Sound error:', e);
+  }
 }
 
 function playGameOver() {
-  const ctx = initAudio();
-  const notes = [400, 350, 300, 200]; // Descending sad tones
+  try {
+    const ctx = initAudio();
+    if (!ctx) return;
 
-  notes.forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    const notes = [400, 350, 300, 200];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
 
-    osc.frequency.value = freq;
-    osc.type = 'sawtooth';
+      osc.frequency.value = freq;
+      osc.type = 'sawtooth';
 
-    const startTime = ctx.currentTime + i * 0.15;
-    gain.gain.setValueAtTime(0.15, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
+      const startTime = ctx.currentTime + i * 0.15;
+      gain.gain.setValueAtTime(0.15, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
 
-    osc.start(startTime);
-    osc.stop(startTime + 0.25);
-  });
+      osc.start(startTime);
+      osc.stop(startTime + 0.25);
+    });
+  } catch (e) {
+    console.warn('Sound error:', e);
+  }
 }
 
 // Elements
@@ -139,6 +164,12 @@ async function startGame() {
 // Play a single turn
 async function playTurn() {
   if (!isPlaying) return;
+
+  // Safety limit
+  if (chain.length >= MAX_CHAIN_LENGTH) {
+    endGame(`Incredible! Hit the ${MAX_CHAIN_LENGTH} animal limit!`);
+    return;
+  }
 
   try {
     const response = await fetch('/api/turn', {
