@@ -286,17 +286,24 @@ Animal starting with "${letter.toUpperCase()}":`;
   }
 });
 
-// End game and learn from it
-app.post('/api/end-game', async (c) => {
+// Learn from game (called when game ends)
+app.post('/api/learn', async (c) => {
   const env = c.env;
-  const { chain, failedLetter, playerName } = await c.req.json();
+  const { chain, failedLetter } = await c.req.json();
 
   let updatedLearnings = null;
 
-  // Update knowledge base based on this game
   if (chain.length > 0 && failedLetter) {
     updatedLearnings = await updateLearnings(env, chain, failedLetter);
   }
+
+  return c.json({ success: true, learnings: updatedLearnings });
+});
+
+// Save score to leaderboard (called when user clicks Save Score)
+app.post('/api/end-game', async (c) => {
+  const env = c.env;
+  const { chain, failedLetter, playerName } = await c.req.json();
 
   // Update leaderboard
   if (chain.length > 0) {
@@ -309,7 +316,7 @@ app.post('/api/end-game', async (c) => {
     });
   }
 
-  return c.json({ success: true, learnings: updatedLearnings });
+  return c.json({ success: true });
 });
 
 // Get leaderboard

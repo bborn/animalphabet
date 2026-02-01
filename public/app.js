@@ -250,15 +250,14 @@ async function endGame(reason) {
   suggestionResult.textContent = '';
   suggestionResult.className = 'suggestion-result';
 
-  // Submit game for learning
+  // Submit game for learning (don't save to leaderboard yet)
   try {
-    const response = await fetch('/api/end-game', {
+    const response = await fetch('/api/learn', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chain,
-        failedLetter: currentLetter,
-        playerName: ''
+        failedLetter: currentLetter
       })
     });
 
