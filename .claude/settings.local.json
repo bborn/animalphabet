@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npx wrangler deploy)",
+      "WebSearch",
+      "WebFetch(domain:developers.cloudflare.com)"
+    ]
+  }
+}

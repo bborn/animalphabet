@@ -47,26 +47,23 @@ async function updateLearnings(env, chain, failedLetter) {
 CURRENT KNOWLEDGE:
 ${currentLearnings.length > 0 ? currentLearnings.map((l, i) => `${i + 1}. ${l}`).join('\n') : '(empty)'}
 
-GAME ANALYSIS:
-- Chain: ${chain.length} animals
-- FAILED on letter: "${failedLetter.toUpperCase()}" (this is important!)
-- Last 5 animals before failure: ${chain.slice(-5).join(' → ')}
-- Full chain: ${chain.join(' → ')}
+GAME RESULT:
+- Chain length: ${chain.length} animals
+- FAILED on letter: "${failedLetter.toUpperCase()}"
+- Animals used: ${chain.join(', ')}
 
-BAD PATTERNS TO LEARN FROM:
-1. What animal led to "${failedLetter.toUpperCase()}"? That animal's ending letter caused the failure.
-2. Could a different animal choice earlier have avoided this?
+MOST IMPORTANT: Add a lesson for the letter "${failedLetter.toUpperCase()}" with 3-5 valid animals that start with it.
+Example format: "FOR ${failedLetter.toUpperCase()}: rat, raven, robin, rhinoceros, rooster"
 
-WRITE SPECIFIC LESSONS like:
-- "AVOID: Lynx, Fox, Sphinx - they end in X which has almost no animals"
-- "FOR letter K: Use Kangaroo→O or Kiwi→I, NOT Koala→A (leads to Axolotl→L→Lynx→X trap)"
-- "X is a death letter - only X-ray tetra works, and it ends in A"
-- "SAFE endings: E, A, R, S, T, N - many animals start with these"
+ALSO consider:
+- Which letters are dangerous (X, Q, Z have few animals)
+- Which endings lead to those dangerous letters
+- What animals were already used that could have ended differently
 
-Update the knowledge base. Be SPECIFIC with animal names and letter patterns. No generic advice.
-Return 5-12 lessons, one per line, no numbering.`;
+WRITE 5-10 SPECIFIC LESSONS. Always include one "FOR ${failedLetter.toUpperCase()}:" lesson with real animals.
+One lesson per line, no numbering, no bullet points.`;
 
-    const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+    const response = await env.AI.run(env.AI_MODEL, {
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 600
     });
@@ -140,26 +137,43 @@ ${strategySection}
 Animal starting with "${letter.toUpperCase()}":`;
 
   try {
-    const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 50
-    });
+    // Try up to 3 times to get a valid animal
+    let animal = null;
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    let animal = response.response.trim().toLowerCase().replace(/[^a-z\s-]/g, '');
+    while (attempts < maxAttempts) {
+      attempts++;
 
-    // Check if stuck
-    if (animal.includes('stuck') || animal === '') {
-      return c.json({ stuck: true, reason: `Couldn't find an animal starting with ${letter.toUpperCase()}` });
+      const response = await env.AI.run(env.AI_MODEL, {
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 50
+      });
+
+      let candidate = response.response.trim().toLowerCase().replace(/[^a-z\s-]/g, '');
+
+      // Check if stuck
+      if (candidate.includes('stuck') || candidate === '') {
+        continue;
+      }
+
+      // Validate: starts with correct letter?
+      if (!candidate.startsWith(letter.toLowerCase())) {
+        continue;
+      }
+
+      // Validate: not a repeat?
+      if (chain.map(a => a.toLowerCase()).includes(candidate)) {
+        continue;
+      }
+
+      // Valid!
+      animal = candidate;
+      break;
     }
 
-    // Validate: starts with correct letter?
-    if (!animal.startsWith(letter.toLowerCase())) {
-      return c.json({ stuck: true, reason: `AI gave "${animal}" but it doesn't start with ${letter.toUpperCase()}` });
-    }
-
-    // Validate: not a repeat?
-    if (chain.map(a => a.toLowerCase()).includes(animal)) {
-      return c.json({ stuck: true, reason: `AI repeated "${animal}"` });
+    if (!animal) {
+      return c.json({ stuck: true, reason: `Couldn't find an animal starting with ${letter.toUpperCase()} after ${maxAttempts} attempts` });
     }
 
     const lastLetter = animal.slice(-1);
