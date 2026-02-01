@@ -182,13 +182,56 @@ section {
   border-radius: 12px;
 }
 
+
 .chain {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
 }
 
+.chain-row {
+  display: block;
+  font-size: 1.05rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--bg);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.2s;
+}
+
+.chain-row:hover {
+  background: var(--surface-2);
+  transform: translateX(4px);
+}
+
+.chain-row .number {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+  display: inline-block;
+  min-width: 2.5rem;
+}
+
+.chain-row .emoji {
+  margin-right: 0.5rem;
+}
+
+.chain-row .prev {
+  color: var(--text-muted);
+}
+
+.chain-row .letter {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.chain-row.new {
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Keep old .animal styles for modal */
 .animal {
   display: inline-flex;
   align-items: center;
@@ -221,10 +264,6 @@ section {
 .animal .name .letter {
   color: var(--primary);
   font-weight: 600;
-}
-
-.animal.new {
-  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes popIn {

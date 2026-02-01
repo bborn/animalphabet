@@ -1,5 +1,67 @@
 // Animalphabet v2
 let chain = [];
+
+// Animal emoji mapping
+const animalEmojis = {
+  aardvark: '🐽', alligator: '🐊', ant: '🐜', anteater: '🐽', antelope: '🦌',
+  ape: '🦍', armadillo: '🦔', axolotl: '🦎',
+  baboon: '🐒', badger: '🦡', bat: '🦇', bear: '🐻', beaver: '🦫', bee: '🐝',
+  beetle: '🪲', bird: '🐦', bison: '🦬', boar: '🐗', buffalo: '🦬', bug: '🐛',
+  bull: '🐂', butterfly: '🦋',
+  camel: '🐫', canary: '🐦', capybara: '🦫', cat: '🐱', caterpillar: '🐛',
+  cheetah: '🐆', chicken: '🐔', chimpanzee: '🐒', chipmunk: '🐿️', clam: '🦪',
+  cobra: '🐍', cockroach: '🪳', cod: '🐟', condor: '🦅', coral: '🪸',
+  cougar: '🐆', cow: '🐄', coyote: '🐺', crab: '🦀', crane: '🦩', cricket: '🦗',
+  crocodile: '🐊', crow: '🐦‍⬛', cuttlefish: '🦑',
+  deer: '🦌', dingo: '🐕', dog: '🐕', dolphin: '🐬', donkey: '🫏', dove: '🕊️',
+  dragon: '🐉', dragonfly: '🪰', duck: '🦆',
+  eagle: '🦅', eel: '🐍', egret: '🦢', elephant: '🐘', elk: '🦌', emu: '🐦',
+  falcon: '🦅', ferret: '🦦', finch: '🐦', fish: '🐟', flamingo: '🦩',
+  fly: '🪰', fox: '🦊', frog: '🐸',
+  gazelle: '🦌', gecko: '🦎', gerbil: '🐹', giraffe: '🦒', goat: '🐐',
+  goose: '🪿', gopher: '🐿️', gorilla: '🦍', grasshopper: '🦗', grouse: '🐦',
+  guinea: '🐹',
+  hamster: '🐹', hare: '🐇', hawk: '🦅', hedgehog: '🦔', heron: '🦢',
+  hippo: '🦛', hippopotamus: '🦛', hornet: '🐝', horse: '🐴', hound: '🐕',
+  hummingbird: '🐦', hyena: '🐕',
+  ibex: '🐐', ibis: '🦩', iguana: '🦎', impala: '🦌',
+  jackal: '🐺', jaguar: '🐆', jay: '🐦', jellyfish: '🪼',
+  kangaroo: '🦘', kingfisher: '🐦', kiwi: '🥝', koala: '🐨', koi: '🐟',
+  ladybug: '🐞', lark: '🐦', lemur: '🐒', leopard: '🐆', lion: '🦁',
+  lizard: '🦎', llama: '🦙', lobster: '🦞', locust: '🦗', lynx: '🐱',
+  macaw: '🦜', magpie: '🐦', mammoth: '🦣', manatee: '🦭', mandrill: '🐒',
+  manta: '🐟', mantis: '🦗', meerkat: '🦡', mole: '🐀', mongoose: '🦡',
+  monkey: '🐒', moose: '🫎', mosquito: '🦟', moth: '🦋', mouse: '🐭', mule: '🫏',
+  narwhal: '🐋', newt: '🦎', nightingale: '🐦', numbat: '🐿️',
+  octopus: '🐙', opossum: '🐀', orangutan: '🦧', orca: '🐋', ostrich: '🦤',
+  otter: '🦦', owl: '🦉', ox: '🐂', oyster: '🦪',
+  panda: '🐼', panther: '🐆', parakeet: '🦜', parrot: '🦜', partridge: '🐦',
+  peacock: '🦚', pelican: '🦤', penguin: '🐧', pheasant: '🐦', pig: '🐷',
+  pigeon: '🐦', piranha: '🐟', platypus: '🦫', pony: '🐴', poodle: '🐩',
+  porcupine: '🦔', porpoise: '🐬', prawn: '🦐', puffin: '🐦', puma: '🐆',
+  quail: '🐦', quokka: '🦘',
+  rabbit: '🐰', raccoon: '🦝', ram: '🐏', rat: '🐀', rattlesnake: '🐍',
+  raven: '🐦‍⬛', reindeer: '🦌', rhino: '🦏', rhinoceros: '🦏', roadrunner: '🐦',
+  robin: '🐦', rooster: '🐓',
+  salamander: '🦎', salmon: '🐟', sardine: '🐟', scorpion: '🦂', seahorse: '🐟',
+  seal: '🦭', shark: '🦈', sheep: '🐑', shrimp: '🦐', skunk: '🦨', sloth: '🦥',
+  snail: '🐌', snake: '🐍', sparrow: '🐦', spider: '🕷️', squid: '🦑',
+  squirrel: '🐿️', starfish: '⭐', stingray: '🐟', stork: '🦢', swan: '🦢',
+  tapir: '🐽', tarantula: '🕷️', termite: '🐜', tiger: '🐅', toad: '🐸',
+  tortoise: '🐢', toucan: '🦜', trout: '🐟', tuna: '🐟', turkey: '🦃', turtle: '🐢',
+  uakari: '🐒',
+  viper: '🐍', vulture: '🦅',
+  wallaby: '🦘', walrus: '🦭', warthog: '🐗', wasp: '🐝', weasel: '🦦',
+  whale: '🐋', wolf: '🐺', wolverine: '🦡', wombat: '🐻', woodpecker: '🐦',
+  worm: '🪱',
+  yak: '🐂',
+  zebra: '🦓'
+};
+
+function getAnimalEmoji(animal) {
+  const name = animal.toLowerCase().split(' ').pop(); // get last word for "red panda" -> "panda"
+  return animalEmojis[name] || '🐾';
+}
 let currentLetter = '';
 let isPlaying = false;
 let gameDelay = 1500; // ms between turns
@@ -119,17 +181,32 @@ function getWikiUrl(animal) {
 // Add animal to the visual chain
 function addAnimalToDisplay(animal, number) {
   const el = document.createElement('a');
-  el.className = 'animal new';
+  el.className = 'chain-row new';
   el.href = getWikiUrl(animal);
   el.target = '_blank';
   el.rel = 'noopener';
 
-  const firstLetter = animal[0].toUpperCase();
-  const lastLetter = animal.slice(-1).toUpperCase();
-  const middle = animal.slice(1, -1);
+  const emoji = getAnimalEmoji(animal);
+  let html = `<span class="number">${number}.</span><span class="emoji">${emoji}</span>`;
 
-  el.innerHTML = `<span class="number">${number}</span><span class="name"><span class="letter">${firstLetter}</span>${middle}<span class="letter">${lastLetter}</span></span>`;
+  if (number === 1) {
+    // First animal - just show it with first/last letter highlighted
+    const first = animal[0].toUpperCase();
+    const middle = animal.slice(1, -1);
+    const last = animal.slice(-1).toUpperCase();
+    html += `<span class="letter">${first}</span>${middle}<span class="letter">${last}</span>`;
+  } else {
+    // Show previous animal (faded) joined with current animal
+    const prev = chain[chain.length - 2];
+    const prevPart = prev.slice(0, -1); // previous without last letter
+    const joiningLetter = prev.slice(-1).toUpperCase(); // the shared letter
+    const currentPart = animal.slice(1, -1); // current without first letter
+    const lastLetter = animal.slice(-1).toUpperCase();
 
+    html += `<span class="prev">${prevPart}</span><span class="letter">${joiningLetter}</span>${currentPart}<span class="letter">${lastLetter}</span>`;
+  }
+
+  el.innerHTML = html;
   chainEl.appendChild(el);
 
   // Scroll to bottom
