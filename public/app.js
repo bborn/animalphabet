@@ -414,6 +414,7 @@ async function loadLeaderboard() {
       let proximity = 1; // 0 = close, 1 = far
       let paused = false;
       let isAnimating = false;
+      let direction = 1; // 1 = forward, -1 = reverse
 
       el.addEventListener('mousemove', (e) => {
         const rect = display.getBoundingClientRect();
@@ -422,6 +423,9 @@ async function loadLeaderboard() {
         const dist = Math.hypot(e.clientX - centerX, e.clientY - centerY);
         const maxDist = 150;
         proximity = Math.min(dist / maxDist, 1);
+
+        // Left of emoji = reverse, right = forward
+        direction = e.clientX < centerX ? -1 : 1;
       });
 
       display.addEventListener('mouseenter', () => {
@@ -457,7 +461,9 @@ async function loadLeaderboard() {
       });
 
       const scheduleNext = () => {
-        const progress = currentIndex / emojis.length;
+        const progress = direction === 1
+          ? currentIndex / emojis.length
+          : (emojis.length - currentIndex) / emojis.length;
         const baseDelay = 80 + Math.pow(progress, 2) * 300;
         const delay = baseDelay + (1 - proximity) * 400;
         animationId = setTimeout(animate, delay);
@@ -474,19 +480,31 @@ async function loadLeaderboard() {
         void display.offsetWidth; // force reflow
         display.classList.add('emoji-pop');
 
-        currentIndex++;
-        if (currentIndex < emojis.length) {
+        const nextIndex = currentIndex + direction;
+        if (nextIndex >= 0 && nextIndex < emojis.length) {
+          currentIndex = nextIndex;
           scheduleNext();
         } else {
-          isAnimating = false;
+          // Bounce: reverse direction at edges
+          direction *= -1;
+          currentIndex += direction;
+          if (currentIndex >= 0 && currentIndex < emojis.length) {
+            scheduleNext();
+          }
         }
       };
 
-      el.addEventListener('mouseenter', () => {
+      el.addEventListener('mouseenter', (e) => {
         if (emojis.length <= 1) return;
         arrow.style.opacity = '0';
         last.style.opacity = '0';
-        currentIndex = 0;
+
+        // Start from beginning or end based on mouse position
+        const rect = display.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        direction = e.clientX < centerX ? -1 : 1;
+        currentIndex = direction === 1 ? 0 : emojis.length - 1;
+
         isAnimating = true;
         paused = false;
         animate();
