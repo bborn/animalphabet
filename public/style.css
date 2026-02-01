@@ -204,6 +204,35 @@ main {
 header {
   text-align: center;
   margin-bottom: 3rem;
+  position: relative;
+}
+
+.github-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.github-badge:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--primary);
+}
+
+.github-badge svg {
+  flex-shrink: 0;
 }
 
 .logo-link {
@@ -1004,6 +1033,14 @@ footer a:hover {
 
   h1 {
     font-size: 2rem;
+  }
+
+  .github-badge {
+    padding: 0.4rem;
+  }
+
+  .github-badge span {
+    display: none;
   }
 
   .stats {
