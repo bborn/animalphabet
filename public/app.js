@@ -3,6 +3,78 @@ let chain = [];
 let currentLetter = '';
 let isPlaying = false;
 let gameDelay = 1500; // ms between turns
+let audioCtx = null;
+
+// Sound effects using Web Audio API
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function playPop() {
+  const ctx = initAudio();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.frequency.setValueAtTime(880, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.05);
+  osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+
+  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.15);
+}
+
+function playMilestone() {
+  const ctx = initAudio();
+  const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+
+    const startTime = ctx.currentTime + i * 0.1;
+    gain.gain.setValueAtTime(0.2, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+
+    osc.start(startTime);
+    osc.stop(startTime + 0.3);
+  });
+}
+
+function playGameOver() {
+  const ctx = initAudio();
+  const notes = [400, 350, 300, 200]; // Descending sad tones
+
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.frequency.value = freq;
+    osc.type = 'sawtooth';
+
+    const startTime = ctx.currentTime + i * 0.15;
+    gain.gain.setValueAtTime(0.15, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
+
+    osc.start(startTime);
+    osc.stop(startTime + 0.25);
+  });
+}
 
 // Elements
 const startControls = document.getElementById('start-controls');
@@ -41,6 +113,8 @@ saveScoreBtn.addEventListener('click', saveScore);
 
 // Start the game
 async function startGame() {
+  initAudio(); // Init audio on user interaction
+
   let letter = startLetterInput.value.trim().toUpperCase();
   if (!letter || !/^[A-Z]$/.test(letter)) {
     letter = 'A'; // Default
@@ -87,6 +161,13 @@ async function playTurn() {
     // Update display
     addAnimalToDisplay(data.animal, chain.length);
     updateStats();
+
+    // Sound effects
+    if (chain.length % 25 === 0) {
+      playMilestone();
+    } else {
+      playPop();
+    }
 
     // Continue after delay
     setTimeout(playTurn, gameDelay);
@@ -138,6 +219,7 @@ function updateStats() {
 // End the game
 async function endGame(reason) {
   isPlaying = false;
+  playGameOver();
 
   statusEl.innerHTML = '';
   gameOverEl.style.display = 'block';
