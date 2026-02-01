@@ -216,10 +216,29 @@ function updateStats() {
   currentLetterEl.textContent = currentLetter.toUpperCase();
 }
 
+// Add failed letter indicator to chain
+function addFailedLetterToDisplay(letter) {
+  const el = document.createElement('span');
+  el.className = 'animal failed new';
+
+  el.innerHTML = `
+    <span class="number">✗</span>
+    <span class="letter">${letter.toUpperCase()}</span>???
+  `;
+
+  chainEl.appendChild(el);
+
+  const container = document.querySelector('.chain-container');
+  container.scrollTop = container.scrollHeight;
+}
+
 // End the game
 async function endGame(reason) {
   isPlaying = false;
   playGameOver();
+
+  // Show the failed letter in the chain
+  addFailedLetterToDisplay(currentLetter);
 
   statusEl.innerHTML = '';
   gameOverEl.style.display = 'block';

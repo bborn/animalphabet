@@ -193,6 +193,17 @@ section {
   transform: scale(1.05);
 }
 
+.animal.failed {
+  background: var(--error);
+  opacity: 0.8;
+  cursor: default;
+}
+
+.animal.failed:hover {
+  background: var(--error);
+  transform: none;
+}
+
 .animal .number {
   color: var(--text-muted);
   font-size: 0.8rem;
