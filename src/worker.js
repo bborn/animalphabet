@@ -264,6 +264,7 @@ GAME RESULT:
 - Animals used: ${chain.join(', ')}
 
 MOST IMPORTANT: Add a lesson for the letter "${failedLetter.toUpperCase()}" with 3-5 valid animals that start with it.
+RULES: Use only REAL, SINGULAR animal names in standard English. NO plurals, NO made-up words.
 Example format: "FOR ${failedLetter.toUpperCase()}: rat, raven, robin, rhinoceros, rooster"
 
 ALSO consider:
