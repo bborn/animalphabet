@@ -6,27 +6,25 @@ const app = new Hono();
 app.use('*', cors());
 
 // System prompt for the animal game
-const SYSTEM_PROMPT = `You are playing the Animal Name Game. The rules are simple:
-1. Name an animal that starts with the given letter
-2. The next animal must start with the LAST letter of the previous animal
-3. You cannot repeat any animal that has already been used in this chain
-4. Use real animals only (no mythical creatures)
-5. When you truly cannot think of a valid animal, respond with "STUCK"
+const BASE_RULES = `You are playing the Animal Name Game.
 
-Respond with ONLY the animal name (or "STUCK"), nothing else. No explanations, no punctuation, just the animal name in lowercase.`;
+RULES:
+1. Name an animal starting with the given letter
+2. The LAST letter of your animal becomes the NEXT required starting letter
+3. No repeating animals already used in the chain
+4. Real animals only (no mythical creatures)
+5. Respond with ONLY the animal name in lowercase, nothing else
+6. Say "STUCK" only if you truly cannot think of a valid animal`;
 
-// Build the strategy context from learned lessons
-async function getStrategyContext(env) {
-  if (!env.STRATEGY) return '';
+// Get learned lessons
+async function getLessons(env) {
+  if (!env.STRATEGY) return [];
 
   try {
     const lessons = await env.STRATEGY.get('lessons', 'json') || [];
-    if (lessons.length === 0) return '';
-
-    const recentLessons = lessons.slice(-20); // Last 20 lessons
-    return `\n\nSTRATEGY LESSONS FROM PREVIOUS GAMES:\n${recentLessons.map(l => `- ${l}`).join('\n')}\n\nUse these lessons to avoid getting stuck!`;
+    return lessons.slice(-15); // Most recent lessons
   } catch {
-    return '';
+    return [];
   }
 }
 
@@ -141,15 +139,23 @@ app.post('/api/turn', async (c) => {
   const env = c.env;
   const { chain, letter } = await c.req.json();
 
-  const strategyContext = await getStrategyContext(env);
+  const lessons = await getLessons(env);
 
   const usedAnimals = chain.length > 0
-    ? `\n\nAnimals already used (DO NOT repeat these): ${chain.join(', ')}`
+    ? `Animals already used (cannot repeat): ${chain.join(', ')}`
+    : 'This is the first animal in the chain.';
+
+  const strategySection = lessons.length > 0
+    ? `\nSTRATEGY (learned from previous games - APPLY THESE):\n${lessons.map(l => `• ${l}`).join('\n')}\n`
     : '';
 
-  const prompt = `${SYSTEM_PROMPT}${strategyContext}${usedAnimals}
+  const prompt = `${BASE_RULES}
 
-Name an animal starting with the letter "${letter.toUpperCase()}":`;
+CURRENT STATE:
+- You need an animal starting with: ${letter.toUpperCase()}
+- ${usedAnimals}
+${strategySection}
+Name an animal starting with "${letter.toUpperCase()}":`;
 
   try {
     const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
