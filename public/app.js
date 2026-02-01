@@ -97,10 +97,19 @@ async function playTurn() {
   }
 }
 
+// Get Wikipedia URL for an animal
+function getWikiUrl(animal) {
+  const formatted = animal.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('_');
+  return `https://en.wikipedia.org/wiki/${formatted}`;
+}
+
 // Add animal to the visual chain
 function addAnimalToDisplay(animal, number) {
-  const el = document.createElement('span');
+  const el = document.createElement('a');
   el.className = 'animal new';
+  el.href = getWikiUrl(animal);
+  el.target = '_blank';
+  el.rel = 'noopener';
 
   const firstLetter = animal[0].toUpperCase();
   const lastLetter = animal.slice(-1).toUpperCase();
@@ -295,10 +304,10 @@ function showChainModal(entry) {
     const firstLetter = animal[0].toUpperCase();
     const lastLetter = animal.slice(-1).toUpperCase();
     return `
-      <span class="animal">
+      <a class="animal" href="${getWikiUrl(animal)}" target="_blank" rel="noopener">
         <span class="number">${i + 1}</span>
         <span class="letter">${firstLetter}</span>${animal.slice(1, -1)}<span class="letter">${lastLetter}</span>
-      </span>
+      </a>
     `;
   }).join('');
 

@@ -183,6 +183,14 @@ section {
   border-radius: 20px;
   font-size: 0.95rem;
   animation: fadeIn 0.3s ease;
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.2s;
+}
+
+.animal:hover {
+  background: var(--primary);
+  transform: scale(1.05);
 }
 
 .animal .number {

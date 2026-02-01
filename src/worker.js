@@ -35,30 +35,36 @@ async function updateLearnings(env, chain, failedLetter) {
   try {
     const currentLearnings = await env.STRATEGY.get('lessons', 'json') || [];
 
-    const prompt = `You manage a LIVING KNOWLEDGE BASE for an Animal Name Game AI.
+    // Analyze the chain for patterns
+    const letterCounts = {};
+    chain.forEach(animal => {
+      const lastLetter = animal.slice(-1).toLowerCase();
+      letterCounts[lastLetter] = (letterCounts[lastLetter] || 0) + 1;
+    });
 
-CURRENT KNOWLEDGE BASE:
-${currentLearnings.length > 0 ? currentLearnings.map((l, i) => `${i + 1}. ${l}`).join('\n') : '(empty - this is the first game)'}
+    const prompt = `You manage a knowledge base for an Animal Name Game. Be SPECIFIC and CONCRETE.
 
-GAME JUST PLAYED:
-- Chain length: ${chain.length} animals
-- Got stuck on letter: "${failedLetter.toUpperCase()}"
+CURRENT KNOWLEDGE:
+${currentLearnings.length > 0 ? currentLearnings.map((l, i) => `${i + 1}. ${l}`).join('\n') : '(empty)'}
+
+GAME ANALYSIS:
+- Chain: ${chain.length} animals
+- FAILED on letter: "${failedLetter.toUpperCase()}" (this is important!)
+- Last 5 animals before failure: ${chain.slice(-5).join(' → ')}
 - Full chain: ${chain.join(' → ')}
 
-ANALYZE this game and UPDATE the knowledge base. You can:
-- ADD new insights discovered from this game
-- UPDATE existing lessons if this game provides better understanding
-- DELETE lessons that this game proved wrong or unhelpful
-- COMBINE similar lessons into stronger ones
-- KEEP lessons that are still valid
+BAD PATTERNS TO LEARN FROM:
+1. What animal led to "${failedLetter.toUpperCase()}"? That animal's ending letter caused the failure.
+2. Could a different animal choice earlier have avoided this?
 
-The goal is a concise, accurate set of 5-15 strategic lessons. Focus on:
-- Which ending letters to avoid (trap letters)
-- Which ending letters are safe
-- Specific animal choices that help or hurt
-- Patterns that lead to long chains
+WRITE SPECIFIC LESSONS like:
+- "AVOID: Lynx, Fox, Sphinx - they end in X which has almost no animals"
+- "FOR letter K: Use Kangaroo→O or Kiwi→I, NOT Koala→A (leads to Axolotl→L→Lynx→X trap)"
+- "X is a death letter - only X-ray tetra works, and it ends in A"
+- "SAFE endings: E, A, R, S, T, N - many animals start with these"
 
-Return ONLY the updated lessons, one per line. No numbering, no explanations.`;
+Update the knowledge base. Be SPECIFIC with animal names and letter patterns. No generic advice.
+Return 5-12 lessons, one per line, no numbering.`;
 
     const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
       messages: [{ role: 'user', content: prompt }],
