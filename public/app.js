@@ -574,14 +574,50 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Submit user suggestion
+async function checkWikipedia(animal) {
+  try {
+    const formatted = animal.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('_');
+    const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${formatted}`);
+    return response.status === 200;
+  } catch {
+    return false;
+  }
+}
+
 async function submitSuggestion() {
-  const animal = suggestionInput.value.trim();
+  const animal = suggestionInput.value.trim().toLowerCase();
   if (!animal) {
     suggestionResult.textContent = 'Please enter an animal name';
     suggestionResult.className = 'suggestion-result error';
     return;
   }
 
+  // Check starts with correct letter
+  if (!animal.startsWith(currentLetter.toLowerCase())) {
+    suggestionResult.textContent = `"${animal}" doesn't start with ${currentLetter.toUpperCase()}`;
+    suggestionResult.className = 'suggestion-result error';
+    return;
+  }
+
+  // Check not already used
+  if (chain.map(a => a.toLowerCase()).includes(animal)) {
+    suggestionResult.textContent = `"${animal}" was already used in this chain`;
+    suggestionResult.className = 'suggestion-result error';
+    return;
+  }
+
+  // Check exists on Wikipedia
+  suggestionResult.textContent = 'Checking Wikipedia...';
+  suggestionResult.className = 'suggestion-result';
+
+  const exists = await checkWikipedia(animal);
+  if (!exists) {
+    suggestionResult.textContent = `"${animal}" not found on Wikipedia`;
+    suggestionResult.className = 'suggestion-result error';
+    return;
+  }
+
+  // Submit to backend
   try {
     const response = await fetch('/api/suggest', {
       method: 'POST',
@@ -592,7 +628,7 @@ async function submitSuggestion() {
     const data = await response.json();
 
     if (data.success) {
-      suggestionResult.textContent = data.message;
+      suggestionResult.textContent = `✓ ${animal} added! AI will remember this.`;
       suggestionResult.className = 'suggestion-result';
       suggestionInput.value = '';
       loadLessons();
